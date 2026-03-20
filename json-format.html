@@ -1,0 +1,749 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JSON Grid Viewer</title>
+    <style>
+      :root {
+        --bg-color: #f8f9fa;
+        --header-bg: #24292f;
+        --header-text: #ffffff;
+        --panel-bg: #ffffff;
+        --panel-border: #d0d7de;
+        --text-main: #24292f;
+        --text-muted: #57606a;
+        --table-th-bg: #f6f8fa;
+        --table-border: #d0d7de;
+        --resizer-hover: #0969da;
+
+        --json-key: #0451a5;
+        --json-string: #098658;
+        --json-boolean: #0000ff;
+        --json-number: #d16b04;
+        --json-null: #e51400;
+      }
+
+      [data-theme="dark"] {
+        --bg-color: #0d1117;
+        --header-bg: #161b22;
+        --header-text: #c9d1d9;
+        --panel-bg: #0d1117;
+        --panel-border: #30363d;
+        --text-main: #c9d1d9;
+        --text-muted: #8b949e;
+        --table-th-bg: #21262d;
+        --table-border: #30363d;
+        --resizer-hover: #2f81f7;
+
+        --json-key: #9cdcfe;
+        --json-string: #6a8759;
+        --json-boolean: #569cd6;
+        --json-number: #ce9178;
+        --json-null: #f44747;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+      }
+
+      header {
+        background: var(--header-bg);
+        color: var(--header-text);
+        padding: 12px 20px;
+        font-size: 1.1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      /* Tooltip Logic */
+      .title-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .tooltip-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+      .info-icon {
+        cursor: help;
+        background: var(--text-muted);
+        color: var(--header-bg);
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        font-size: 12px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+      }
+      .info-icon:hover {
+        background: #fff;
+      }
+      .tooltip-content {
+        visibility: hidden;
+        opacity: 0;
+        width: 380px;
+        background-color: var(--panel-bg);
+        color: var(--text-main);
+        text-align: left;
+        border-radius: 6px;
+        padding: 15px;
+        position: absolute;
+        z-index: 100;
+        top: 130%;
+        left: 0;
+        border: 1px solid var(--panel-border);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        transition:
+          opacity 0.2s,
+          visibility 0.2s;
+        font-size: 13px;
+        font-weight: normal;
+        line-height: 1.5;
+      }
+      .tooltip-wrapper:hover .tooltip-content {
+        visibility: visible;
+        opacity: 1;
+      }
+      .tooltip-content h3 {
+        margin: 0 0 10px 0;
+        font-size: 14px;
+        color: var(--resizer-hover);
+      }
+      .tooltip-content ul {
+        padding-left: 20px;
+        margin: 0;
+      }
+      .tooltip-content li {
+        margin-bottom: 6px;
+      }
+
+      #theme-toggle {
+        background: transparent;
+        color: var(--header-text);
+        border: 1px solid var(--panel-border);
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9rem;
+      }
+
+      .container {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      .panel {
+        display: flex;
+        flex-direction: column;
+        padding: 15px;
+        background: var(--panel-bg);
+        min-width: 200px;
+      }
+
+      #left-panel {
+        width: 40%;
+        flex-shrink: 0;
+      }
+      #right-panel {
+        flex: 1;
+      }
+
+      .resizer {
+        width: 8px;
+        background: var(--panel-border);
+        cursor: col-resize;
+        flex-shrink: 0;
+        transition: background 0.2s ease;
+      }
+      .resizer:hover,
+      .resizer:active {
+        background: var(--resizer-hover);
+      }
+
+      .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .panel h2 {
+        margin: 0;
+        font-size: 1rem;
+      }
+
+      .btn {
+        background: var(--table-th-bg);
+        color: var(--text-main);
+        border: 1px solid var(--panel-border);
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-left: 8px;
+      }
+      .btn:hover {
+        filter: brightness(0.9);
+      }
+      .btn-primary {
+        background: #0969da;
+        color: #fff;
+        border-color: #0969da;
+      }
+      [data-theme="dark"] .btn-primary {
+        background: #2f81f7;
+        border-color: #2f81f7;
+        color: #fff;
+      }
+      .btn-icon {
+        padding: 6px 10px;
+        font-size: 1rem;
+        line-height: 1;
+      }
+
+      #json-input {
+        flex: 1;
+        overflow: auto;
+        border: 1px solid var(--panel-border);
+        border-radius: 6px;
+        padding: 15px;
+        background: var(--bg-color);
+        font-family: "Courier New", Courier, monospace;
+        font-size: 14px;
+        line-height: 1.5;
+        white-space: pre;
+        outline: none;
+        color: var(--text-main);
+      }
+      #json-input:focus {
+        border-color: #0969da;
+      }
+
+      #error-msg {
+        color: #cf222e;
+        margin-top: 10px;
+        font-size: 0.9rem;
+        min-height: 20px;
+      }
+      [data-theme="dark"] #error-msg {
+        color: #ff7b72;
+      }
+
+      #grid-output {
+        flex: 1;
+        overflow: auto;
+        border: 1px solid var(--panel-border);
+        border-radius: 6px;
+        padding: 10px;
+        background: var(--bg-color);
+        font-size: 13px;
+      }
+
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-bottom: 8px;
+        font-size: inherit;
+        background: var(--panel-bg);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      th,
+      td {
+        border: 1px solid var(--table-border);
+        padding: 6px 10px;
+        text-align: left;
+        vertical-align: top;
+        cursor: pointer;
+      }
+      th {
+        background-color: var(--table-th-bg);
+        font-weight: 600;
+        color: var(--text-main);
+        cursor: pointer;
+      }
+      .index-col {
+        width: 40px;
+        text-align: center;
+        color: var(--text-muted);
+        font-weight: bold;
+        background-color: var(--table-th-bg);
+        cursor: pointer;
+      }
+
+      #hidden-fields-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 8px;
+        align-items: center;
+        min-height: 24px;
+      }
+      .hidden-chip {
+        background: var(--panel-border);
+        padding: 3px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        color: var(--text-main);
+        transition: background 0.2s;
+      }
+      .hidden-chip:hover {
+        background: #cf222e;
+        color: #fff;
+      }
+      .hide-all {
+        background: #cf222e;
+        color: #fff;
+      }
+      .hide-all:hover {
+        color: #cf222e;
+        background: #fff;
+      }
+    </style>
+  </head>
+  <body data-theme="dark">
+    <header>
+      <div class="title-wrapper">
+        JSON Grid Viewer
+        <div class="tooltip-wrapper">
+          <span class="info-icon">ⓘ</span>
+          <div class="tooltip-content">
+            <h3>Features & How to Use</h3>
+            <ul>
+              <li>
+                <strong>Edit JSON:</strong> Paste or type raw JSON on the left.
+                Syntax is automatically highlighted.
+              </li>
+              <li>
+                <strong>Format JSON:</strong> Prettifies your raw JSON code with
+                proper indentation.
+              </li>
+              <li>
+                <strong>Generate Grid:</strong> Renders your nested JSON arrays
+                and objects into easy-to-read tables.
+              </li>
+              <li>
+                <strong>Hide/Show Fields:</strong> Click the 👁️ icon next to any
+                table header to hide that column/field. Click the chips above
+                the grid to restore them.
+              </li>
+              <li>
+                <strong>Zoom:</strong> Use the <code>+</code> and
+                <code>-</code> buttons or <code>Ctrl + Mouse Wheel</code> to
+                independently scale text inside each panel.
+              </li>
+              <li>
+                <strong>Resize Panels:</strong> Drag the middle vertical bar to
+                adjust workspace proportions.
+              </li>
+              <li>
+                <strong>History:</strong> Use <code>Ctrl + Z</code> and
+                <code>Ctrl + Shift + Z</code> to undo/redo your JSON text edits.
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <button id="theme-toggle">Switch to Light Theme</button>
+    </header>
+
+    <div class="container">
+      <div class="panel" id="left-panel">
+        <div class="panel-header">
+          <h2>Input JSON</h2>
+          <div>
+            <button id="json-zoom-out" class="btn btn-icon" title="Zoom Out">
+              -
+            </button>
+            <button id="json-zoom-in" class="btn btn-icon" title="Zoom In">
+              +
+            </button>
+            <button id="format-btn" class="btn">Format JSON</button>
+            <button id="generate-btn" class="btn btn-primary">
+              Generate Grid
+            </button>
+          </div>
+        </div>
+        <div id="json-input" contenteditable="true" spellcheck="false"></div>
+        <div id="error-msg"></div>
+      </div>
+
+      <div class="resizer" id="resizer"></div>
+
+      <div class="panel" id="right-panel">
+        <div class="panel-header">
+          <h2>Grid View</h2>
+          <div>
+            <button id="grid-zoom-out" class="btn btn-icon" title="Zoom Out">
+              -
+            </button>
+            <button id="grid-zoom-in" class="btn btn-icon" title="Zoom In">
+              +
+            </button>
+          </div>
+        </div>
+        <div id="hidden-fields-bar"></div>
+        <div id="grid-output"></div>
+      </div>
+    </div>
+
+    <script>
+      const jsonInput = document.getElementById("json-input");
+      const formatBtn = document.getElementById("format-btn");
+      const generateBtn = document.getElementById("generate-btn");
+      const errorMsg = document.getElementById("error-msg");
+      const gridOutput = document.getElementById("grid-output");
+      const themeToggle = document.getElementById("theme-toggle");
+      const resizer = document.getElementById("resizer");
+      const leftPanel = document.getElementById("left-panel");
+      const hiddenFieldsBar = document.getElementById("hidden-fields-bar");
+
+      const defaultJson = `{
+  "name": "test",
+  "enabled": true,
+  "count": 10,
+  "employees": [
+    { "id": 1, "department": "Engineering", "salary": 5000 },
+    { "id": 2, "department": "Marketing", "salary": 4500 }
+  ],
+  "active": null
+}`;
+
+      let currentParsedData = null;
+      let hiddenFields = new Set();
+
+      window.hideField = function (encodedField) {
+        const field = decodeURIComponent(encodedField);
+        hiddenFields.add(field);
+        renderGrid();
+      };
+
+      window.unhideField = function (encodedField) {
+        const field = decodeURIComponent(encodedField);
+        hiddenFields.delete(field);
+        renderGrid();
+      };
+
+      window.unhideAll = function () {
+        hiddenFields.clear();
+        renderGrid();
+      };
+
+      function renderHiddenChips() {
+        if (hiddenFields.size === 0) {
+          hiddenFieldsBar.innerHTML = "";
+          return;
+        }
+        let html =
+          '<span style="font-size: 12px; color: var(--text-muted);">Hidden Fields:</span>';
+
+        if (hiddenFields.size > 0) {
+          html += `<div class="hidden-chip hide-all" onclick="unhideAll()" title="Unhide All"> Unhide All <span>✖</span></div>`;
+        }
+        hiddenFields.forEach((f) => {
+          const safeF = escapeHtml(f);
+          const encodedF = encodeURIComponent(f);
+          html += `<div class="hidden-chip" onclick="unhideField('${encodedF}')" title="Click to show">${safeF} <span>✖</span></div>`;
+        });
+        hiddenFieldsBar.innerHTML = html;
+      }
+
+      function renderGrid() {
+        if (!currentParsedData) {
+          gridOutput.innerHTML = "";
+          return;
+        }
+        gridOutput.innerHTML = buildTable(currentParsedData);
+        renderHiddenChips();
+      }
+
+      function escapeHtml(unsafe) {
+        return (unsafe || "")
+          .toString()
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      let isResizing = false;
+      resizer.addEventListener("mousedown", () => {
+        isResizing = true;
+        document.body.style.cursor = "col-resize";
+        jsonInput.style.pointerEvents = "none";
+      });
+      document.addEventListener("mousemove", (e) => {
+        if (!isResizing) return;
+        const minWidth = 300;
+        const offsetRight = document.body.offsetWidth - e.clientX;
+        if (e.clientX > minWidth && offsetRight > minWidth) {
+          const newWidth = (e.clientX / document.body.offsetWidth) * 100;
+          leftPanel.style.width = `${newWidth}%`;
+        }
+      });
+      document.addEventListener("mouseup", () => {
+        if (isResizing) {
+          isResizing = false;
+          document.body.style.cursor = "default";
+          jsonInput.style.pointerEvents = "auto";
+        }
+      });
+
+      let jsonFontSize = 14;
+      let gridFontSize = 13;
+      function applyZoom(element, currentSize, delta) {
+        let newSize = currentSize + delta;
+        if (newSize >= 8 && newSize <= 48) {
+          element.style.fontSize = newSize + "px";
+          return newSize;
+        }
+        return currentSize;
+      }
+      document.getElementById("json-zoom-in").onclick = () =>
+        (jsonFontSize = applyZoom(jsonInput, jsonFontSize, 2));
+      document.getElementById("json-zoom-out").onclick = () =>
+        (jsonFontSize = applyZoom(jsonInput, jsonFontSize, -2));
+      document.getElementById("grid-zoom-in").onclick = () =>
+        (gridFontSize = applyZoom(gridOutput, gridFontSize, 2));
+      document.getElementById("grid-zoom-out").onclick = () =>
+        (gridFontSize = applyZoom(gridOutput, gridFontSize, -2));
+
+      jsonInput.addEventListener(
+        "wheel",
+        (e) => {
+          if (e.ctrlKey) {
+            e.preventDefault();
+            jsonFontSize = applyZoom(
+              jsonInput,
+              jsonFontSize,
+              e.deltaY < 0 ? 1 : -1,
+            );
+          }
+        },
+        { passive: false },
+      );
+      gridOutput.addEventListener(
+        "wheel",
+        (e) => {
+          if (e.ctrlKey) {
+            e.preventDefault();
+            gridFontSize = applyZoom(
+              gridOutput,
+              gridFontSize,
+              e.deltaY < 0 ? 1 : -1,
+            );
+          }
+        },
+        { passive: false },
+      );
+
+      let historyStack = [];
+      let historyIndex = -1;
+      let saveTimeout;
+      function saveState() {
+        const content = jsonInput.innerHTML;
+        if (historyStack[historyIndex] !== content) {
+          historyStack = historyStack.slice(0, historyIndex + 1);
+          historyStack.push(content);
+          historyIndex++;
+        }
+      }
+      jsonInput.addEventListener("input", () => {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(saveState, 400);
+      });
+      jsonInput.addEventListener("keydown", (e) => {
+        if (e.ctrlKey && e.key.toLowerCase() === "z") {
+          e.preventDefault();
+          if (e.shiftKey) {
+            if (historyIndex < historyStack.length - 1) {
+              historyIndex++;
+              jsonInput.innerHTML = historyStack[historyIndex];
+            }
+          } else {
+            if (historyIndex > 0) {
+              historyIndex--;
+              jsonInput.innerHTML = historyStack[historyIndex];
+            }
+          }
+        }
+      });
+      jsonInput.addEventListener("paste", (e) => {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData(
+          "text/plain",
+        );
+        document.execCommand("insertText", false, text);
+        saveState();
+      });
+
+      themeToggle.addEventListener("click", () => {
+        const isDark = document.body.getAttribute("data-theme") === "dark";
+        document.body.setAttribute("data-theme", isDark ? "light" : "dark");
+        themeToggle.textContent = isDark
+          ? "Switch to Dark Theme"
+          : "Switch to Light Theme";
+      });
+
+      function syntaxHighlight(json) {
+        if (!json) return "";
+        json = json
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+        return json.replace(
+          /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+          function (match) {
+            let color = "var(--json-number)";
+            if (/^"/.test(match)) {
+              if (/:$/.test(match)) color = "var(--json-key)";
+              else color = "var(--json-string)";
+            } else if (/true|false/.test(match)) color = "var(--json-boolean)";
+            else if (/null/.test(match)) color = "var(--json-null)";
+            return (
+              '<p style="display:inline; margin:0; color: ' +
+              color +
+              ';">' +
+              match +
+              "</p>"
+            );
+          },
+        );
+      }
+
+      function parseAndFormatJSON() {
+        const rawText = jsonInput.innerText.trim();
+        if (!rawText) return null;
+
+        const parsed = JSON.parse(rawText);
+        const formatted = JSON.stringify(parsed, null, 2);
+
+        jsonInput.innerHTML = syntaxHighlight(formatted);
+        saveState();
+
+        return parsed;
+      }
+      formatBtn.addEventListener("click", () => {
+        errorMsg.textContent = "";
+        try {
+          parseAndFormatJSON();
+        } catch (error) {
+          errorMsg.textContent = "Invalid JSON: " + error.message;
+        }
+      });
+
+      generateBtn.addEventListener("click", () => {
+        errorMsg.textContent = "";
+
+        try {
+          const parsed = parseAndFormatJSON();
+          currentParsedData = parsed;
+          renderGrid();
+        } catch (error) {
+          errorMsg.textContent = "Invalid JSON: " + error.message;
+        }
+      });
+
+      function formatGridValue(val) {
+        if (val === null)
+          return '<p style="display:inline; margin:0; font-style:italic; color: var(--json-null);">null</p>';
+        if (typeof val === "boolean")
+          return `<p style="display:inline; margin:0; font-weight:bold; color: var(--json-boolean);">${val}</p>`;
+        if (typeof val === "number")
+          return `<p style="display:inline; margin:0; color: var(--json-number);">${val}</p>`;
+        if (typeof val === "string")
+          return `<p style="display:inline; margin:0; color: var(--json-string);">"${escapeHtml(val)}"</p>`;
+        return val;
+      }
+
+      function buildTable(data) {
+        if (data === null || typeof data !== "object")
+          return formatGridValue(data);
+        let html = "<table>";
+
+        if (Array.isArray(data)) {
+          if (data.length === 0) return "[]";
+          const isObjArray = data.some(
+            (item) =>
+              typeof item === "object" && item !== null && !Array.isArray(item),
+          );
+
+          if (isObjArray) {
+            let keysSet = new Set();
+            data.forEach((item) => {
+              if (typeof item === "object" && item !== null) {
+                Object.keys(item).forEach((k) => keysSet.add(k));
+              }
+            });
+
+            let cols = Array.from(keysSet).filter((c) => !hiddenFields.has(c));
+
+            html += '<tr><th class="index-col">#</th>';
+            cols.forEach((col) => {
+              const safeCol = escapeHtml(col);
+              const encodedCol = encodeURIComponent(col);
+              html += `<th onclick="hideField('${encodedCol}')" title="Hide field">${safeCol} </th>`;
+            });
+            html += "</tr>";
+
+            data.forEach((row, index) => {
+              html += `<tr><td class="index-col">${index}</td>`;
+              cols.forEach((col) => {
+                const val =
+                  row && typeof row === "object" ? row[col] : undefined;
+                html += `<td>${val !== undefined ? buildTable(val) : ""}</td>`;
+              });
+              html += "</tr>";
+            });
+          } else {
+            html += '<tr><th class="index-col">#</th><th>Value</th></tr>';
+            data.forEach((item, index) => {
+              html += `<tr><td class="index-col">${index}</td><td>${buildTable(item)}</td></tr>`;
+            });
+          }
+        } else {
+          let keys = Object.keys(data).filter((k) => !hiddenFields.has(k));
+          if (keys.length === 0) return "{}";
+
+          html += "<tr><th>Key</th><th>Value</th></tr>";
+          keys.forEach((key) => {
+            const safeKey = escapeHtml(key);
+            const encodedKey = encodeURIComponent(key);
+            html += `<tr><td  onclick="hideField('${encodedKey}')" title="Hide field"><strong>${safeKey}</strong></td><td>${buildTable(data[key])}</td></tr>`;
+          });
+        }
+
+        html += "</table>";
+        return html;
+      }
+
+      jsonInput.innerHTML = syntaxHighlight(defaultJson);
+      saveState();
+      generateBtn.click();
+    </script>
+  </body>
+</html>
