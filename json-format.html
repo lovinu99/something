@@ -22,9 +22,7 @@
         --table-border: #d0d7de;
 
         /* >>> NEW: Table Highlight <<< */
-        --table-row-hover: #eaeef2; /* clearer hover */
-        --table-row-selected: #cfe8ff; /* stronger blue */
-        --table-row-striped: #f2f4f7; /* visible but subtle */
+        --table-row-hover: rgba(47, 129, 247, 0.05);
 
         /* ===== Interaction ===== */
         --resizer-hover: #0969da;
@@ -65,9 +63,7 @@
         --table-border: #30363d;
 
         /* >>> NEW: Table Highlight <<< */
-        --table-row-hover: #263040; /* stronger hover */
-        --table-row-selected: #1f6feb77; /* more visible selection */
-        --table-row-striped: #1a212b; /* better row separation */
+        --table-row-hover: rgba(47, 129, 247, 0.05);
 
         /* ===== Interaction ===== */
         --resizer-hover: #2f81f7;
@@ -336,6 +332,10 @@
         background-color: var(--table-th-bg);
         cursor: pointer;
       }
+      .index-col:hover {
+        background-color: #cf222e;
+        color: #fff;
+      }
 
       #hidden-fields-bar {
         display: flex;
@@ -375,7 +375,6 @@
       }
 
       /* ===== Column highlight (correct :has usage) ===== */
-      /* Highlight entire column when a cell is hovered */
       table:has(td:hover) td:hover,
       table:has(td:hover) col {
         background-color: var(--table-row-hover);
@@ -383,14 +382,9 @@
 
       /* ===== Cell hover (strongest priority) ===== */
       td:hover {
-        background-color: var(--table-row-selected);
+        background-color: var(--table-row-hover);
         outline: 1px solid var(--accent-color);
         position: relative;
-      }
-
-      /* ===== Selected row (if you use .selected class) ===== */
-      table tr.selected {
-        background-color: var(--table-row-selected);
       }
     </style>
   </head>
@@ -416,14 +410,14 @@
                 and objects into easy-to-read tables.
               </li>
               <li>
-                <strong>Hide/Show Fields:</strong> Click the 👁️ icon next to any
-                table header to hide that column/field. Click the chips above
-                the grid to restore them.
+                <strong>Hide Fields/Rows:</strong> Click the table headers to
+                hide columns. Click the index number (e.g., 0, 1, 2) to hide
+                specific rows. Click the chips above the grid to restore them.
               </li>
               <li>
                 <strong>Zoom:</strong> Use the <code>+</code> and
                 <code>-</code> buttons or <code>Ctrl + Mouse Wheel</code> to
-                independently scale text inside each panel.
+                independently scale text.
               </li>
               <li>
                 <strong>Resize Panels:</strong> Drag the middle vertical bar to
@@ -532,6 +526,7 @@
 
       let currentParsedData = null;
       let hiddenFields = new Set();
+      let hiddenRows = new Set(); // Mảng track các hàng đã ẩn bằng đường dẫn (path)
 
       window.hideField = function (encodedField) {
         const field = decodeURIComponent(encodedField);
@@ -545,27 +540,46 @@
         renderGrid();
       };
 
+      window.hideRow = function (encodedPath) {
+        const path = decodeURIComponent(encodedPath);
+        hiddenRows.add(path);
+        renderGrid();
+      };
+
+      window.unhideRow = function (encodedPath) {
+        const path = decodeURIComponent(encodedPath);
+        hiddenRows.delete(path);
+        renderGrid();
+      };
+
       window.unhideAll = function () {
         hiddenFields.clear();
+        hiddenRows.clear();
         renderGrid();
       };
 
       function renderHiddenChips() {
-        if (hiddenFields.size === 0) {
+        if (hiddenFields.size === 0 && hiddenRows.size === 0) {
           hiddenFieldsBar.innerHTML = "";
           return;
         }
         let html =
-          '<span style="font-size: 12px; color: var(--text-muted);">Hidden Fields:</span>';
+          '<span style="font-size: 12px; color: var(--text-muted);">Hidden:</span>';
 
-        if (hiddenFields.size > 0) {
-          html += `<div class="hidden-chip hide-all" onclick="unhideAll()" title="Unhide All"> Unhide All <span>✖</span></div>`;
-        }
+        html += `<div class="hidden-chip hide-all" onclick="unhideAll()" title="Unhide All"> Unhide All <span>✖</span></div>`;
+
         hiddenFields.forEach((f) => {
           const safeF = escapeHtml(f);
           const encodedF = encodeURIComponent(f);
-          html += `<div class="hidden-chip" onclick="unhideField('${encodedF}')" title="Click to show">${safeF} <span>✖</span></div>`;
+          html += `<div class="hidden-chip" onclick="unhideField('${encodedF}')" title="Click to show">Field: ${safeF} <span>✖</span></div>`;
         });
+
+        hiddenRows.forEach((r) => {
+          const safeR = escapeHtml(r);
+          const encodedR = encodeURIComponent(r);
+          html += `<div class="hidden-chip" onclick="unhideRow('${encodedR}')" title="Click to show">Row: ${safeR} <span>✖</span></div>`;
+        });
+
         hiddenFieldsBar.innerHTML = html;
       }
 
@@ -574,7 +588,7 @@
           gridOutput.innerHTML = "";
           return;
         }
-        gridOutput.innerHTML = buildTable(currentParsedData);
+        gridOutput.innerHTML = buildTable(currentParsedData, "root");
         renderHiddenChips();
       }
 
@@ -644,6 +658,7 @@
         },
         { passive: false },
       );
+
       gridOutput.addEventListener(
         "wheel",
         (e) => {
@@ -778,7 +793,8 @@
         return val;
       }
 
-      function buildTable(data) {
+      // Thêm tham số path để định danh vị trí chính xác của object/array
+      function buildTable(data, path = "root") {
         if (data === null || typeof data !== "object")
           return formatGridValue(data);
         let html = "<table>";
@@ -809,18 +825,27 @@
             html += "</tr>";
 
             data.forEach((row, index) => {
-              html += `<tr><td class="index-col">${index}</td>`;
+              const currentPath = `${path}[${index}]`;
+              if (hiddenRows.has(currentPath)) return; // Bỏ qua render nếu hàng đã bị ẩn
+
+              const encodedPath = encodeURIComponent(currentPath);
+              html += `<tr><td class="index-col" onclick="hideRow('${encodedPath}')" title="Hide row">${index}</td>`;
               cols.forEach((col) => {
                 const val =
                   row && typeof row === "object" ? row[col] : undefined;
-                html += `<td>${val !== undefined ? buildTable(val) : ""}</td>`;
+                // Truyền tiếp currentPath để tracking sâu hơn
+                html += `<td>${val !== undefined ? buildTable(val, `${currentPath}.${col}`) : ""}</td>`;
               });
               html += "</tr>";
             });
           } else {
             html += '<tr><th class="index-col">#</th><th>Value</th></tr>';
             data.forEach((item, index) => {
-              html += `<tr><td class="index-col">${index}</td><td>${buildTable(item)}</td></tr>`;
+              const currentPath = `${path}[${index}]`;
+              if (hiddenRows.has(currentPath)) return;
+
+              const encodedPath = encodeURIComponent(currentPath);
+              html += `<tr><td class="index-col" onclick="hideRow('${encodedPath}')" title="Hide row">${index}</td><td>${buildTable(item, currentPath)}</td></tr>`;
             });
           }
         } else {
@@ -830,7 +855,7 @@
           keys.forEach((key) => {
             const safeKey = escapeHtml(key);
             const encodedKey = encodeURIComponent(key);
-            html += `<tr><td  onclick="hideField('${encodedKey}')" title="Hide field"><strong>${safeKey}</strong></td><td>${buildTable(data[key])}</td></tr>`;
+            html += `<tr><td onclick="hideField('${encodedKey}')" title="Hide field"><strong>${safeKey}</strong></td><td>${buildTable(data[key], `${path}.${key}`)}</td></tr>`;
           });
         }
 
@@ -838,7 +863,6 @@
         return html;
       }
 
-      // Add this inside your script section
       gridOutput.addEventListener("mouseover", (e) => {
         const cell = e.target.closest("td");
         if (!cell) return;
@@ -846,7 +870,6 @@
         const table = cell.closest("table");
         const index = cell.cellIndex;
 
-        // Highlight columns by adding a class to all cells in the same index
         Array.from(table.rows).forEach((row) => {
           if (row.cells[index]) {
             row.cells[index].style.backgroundColor = "rgba(47, 129, 247, 0.05)";
