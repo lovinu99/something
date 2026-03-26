@@ -48,43 +48,43 @@
 
       [data-theme="dark"] {
         /* ===== Core Colors ===== */
-        --bg-color: #0d1117;
-        --header-bg: #161b22;
-        --header-text: #c9d1d9;
-        --panel-bg: #0d1117;
-        --panel-border: #30363d;
+        --bg-color: #1e1e1e; /* VSCode editor bg */
+        --header-bg: #252526; /* activity bar / header */
+        --header-text: #d4d4d4;
+        --panel-bg: #1e1e1e;
+        --panel-border: #2d2d2d;
 
         /* ===== Text ===== */
-        --text-main: #c9d1d9;
-        --text-muted: #8b949e;
+        --text-main: #d4d4d4;
+        --text-muted: #9da5b4;
 
         /* ===== Table ===== */
-        --table-th-bg: #21262d;
-        --table-border: #30363d;
+        --table-th-bg: #2d2d2d;
+        --table-border: #3c3c3c;
 
-        /* >>> NEW: Table Highlight <<< */
-        --table-row-hover: rgba(47, 129, 247, 0.05);
+        /* >>> VSCode-style Hover <<< */
+        --table-row-hover: rgba(255, 255, 255, 0.06);
 
         /* ===== Interaction ===== */
-        --resizer-hover: #2f81f7;
-        --accent-color: #2f81f7;
+        --resizer-hover: #007acc;
+        --accent-color: #007acc;
 
-        /* ===== Status Colors ===== */
-        --color-success: #3fb950;
-        --color-warning: #d29922;
-        --color-danger: #f85149;
-        --color-info: #2f81f7;
+        /* ===== Status Colors (VSCode-like) ===== */
+        --color-success: #89d185;
+        --color-warning: #d7ba7d;
+        --color-danger: #f48771;
+        --color-info: #4fc1ff;
 
         /* ===== Shadows ===== */
-        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-        --shadow-md: 0 3px 6px rgba(0, 0, 0, 0.6);
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+        --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
 
-        /* ===== JSON Highlight ===== */
+        /* ===== JSON Highlight (VSCode Dark+) ===== */
         --json-key: #9cdcfe;
-        --json-string: #6a8759;
+        --json-string: #ce9178;
         --json-boolean: #569cd6;
-        --json-number: #ce9178;
-        --json-null: #f44747;
+        --json-number: #b5cea8;
+        --json-null: #808080;
       }
       * {
         box-sizing: border-box;
@@ -180,7 +180,7 @@
       #theme-toggle {
         background: transparent;
         color: var(--header-text);
-        border: 1px solid var(--panel-border);
+        border: 1px solid #d4d4d4;
         padding: 6px 12px;
         border-radius: 6px;
         cursor: pointer;
@@ -431,7 +431,7 @@
           </div>
         </div>
       </div>
-      <button id="theme-toggle">Switch to Light Theme</button>
+      <button id="theme-toggle">Change Theme</button>
     </header>
 
     <div class="container">
@@ -717,9 +717,7 @@
       themeToggle.addEventListener("click", () => {
         const isDark = document.body.getAttribute("data-theme") === "dark";
         document.body.setAttribute("data-theme", isDark ? "light" : "dark");
-        themeToggle.textContent = isDark
-          ? "Switch to Dark Theme"
-          : "Switch to Light Theme";
+        themeToggle.textContent = "Theme: " + (isDark ? "Light" : "Dark");
       });
 
       function syntaxHighlight(json) {
