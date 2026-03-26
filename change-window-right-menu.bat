@@ -29,11 +29,8 @@ set /p choice=Select option (0-2):
 
 if "%choice%"=="1" goto classic
 if "%choice%"=="2" goto modern
-if "%choice%"=="0" exit
+if "%choice%"=="0" goto exit
 
-echo Invalid choice!
-pause
-goto menu
 
 :: ================================
 :: Classic Menu
@@ -49,9 +46,7 @@ echo Restarting explorer...
 
 taskkill /f /im explorer.exe
 start explorer.exe
-pause
-goto menu
-
+exit
 :: ================================
 :: Modern Menu
 :: ================================
@@ -66,6 +61,4 @@ echo Restarting explorer...
 
 taskkill /f /im explorer.exe
 start explorer.exe
-
-pause
-goto menu
+exit
