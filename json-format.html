@@ -6,17 +6,41 @@
     <title>JSON Grid Viewer</title>
     <style>
       :root {
+        /* ===== Core Colors ===== */
         --bg-color: #f8f9fa;
         --header-bg: #24292f;
         --header-text: #ffffff;
         --panel-bg: #ffffff;
         --panel-border: #d0d7de;
+
+        /* ===== Text ===== */
         --text-main: #24292f;
         --text-muted: #57606a;
+
+        /* ===== Table ===== */
         --table-th-bg: #f6f8fa;
         --table-border: #d0d7de;
-        --resizer-hover: #0969da;
 
+        /* >>> NEW: Table Highlight <<< */
+        --table-row-hover: #eaeef2; /* clearer hover */
+        --table-row-selected: #cfe8ff; /* stronger blue */
+        --table-row-striped: #f2f4f7; /* visible but subtle */
+
+        /* ===== Interaction ===== */
+        --resizer-hover: #0969da;
+        --accent-color: #0969da;
+
+        /* ===== Status Colors ===== */
+        --color-success: #2da44e;
+        --color-warning: #d29922;
+        --color-danger: #cf222e;
+        --color-info: #0969da;
+
+        /* ===== Shadows ===== */
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+        --shadow-md: 0 3px 6px rgba(0, 0, 0, 0.1);
+
+        /* ===== JSON Highlight ===== */
         --json-key: #0451a5;
         --json-string: #098658;
         --json-boolean: #0000ff;
@@ -25,24 +49,47 @@
       }
 
       [data-theme="dark"] {
+        /* ===== Core Colors ===== */
         --bg-color: #0d1117;
         --header-bg: #161b22;
         --header-text: #c9d1d9;
         --panel-bg: #0d1117;
         --panel-border: #30363d;
+
+        /* ===== Text ===== */
         --text-main: #c9d1d9;
         --text-muted: #8b949e;
+
+        /* ===== Table ===== */
         --table-th-bg: #21262d;
         --table-border: #30363d;
-        --resizer-hover: #2f81f7;
 
+        /* >>> NEW: Table Highlight <<< */
+        --table-row-hover: #263040; /* stronger hover */
+        --table-row-selected: #1f6feb77; /* more visible selection */
+        --table-row-striped: #1a212b; /* better row separation */
+
+        /* ===== Interaction ===== */
+        --resizer-hover: #2f81f7;
+        --accent-color: #2f81f7;
+
+        /* ===== Status Colors ===== */
+        --color-success: #3fb950;
+        --color-warning: #d29922;
+        --color-danger: #f85149;
+        --color-info: #2f81f7;
+
+        /* ===== Shadows ===== */
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+        --shadow-md: 0 3px 6px rgba(0, 0, 0, 0.6);
+
+        /* ===== JSON Highlight ===== */
         --json-key: #9cdcfe;
         --json-string: #6a8759;
         --json-boolean: #569cd6;
         --json-number: #ce9178;
         --json-null: #f44747;
       }
-
       * {
         box-sizing: border-box;
       }
@@ -322,6 +369,29 @@
         color: #cf222e;
         background: #fff;
       }
+      /* ===== Row hover ===== */
+      table tr:hover {
+        background-color: var(--table-row-hover);
+      }
+
+      /* ===== Column highlight (correct :has usage) ===== */
+      /* Highlight entire column when a cell is hovered */
+      table:has(td:hover) td:hover,
+      table:has(td:hover) col {
+        background-color: var(--table-row-hover);
+      }
+
+      /* ===== Cell hover (strongest priority) ===== */
+      td:hover {
+        background-color: var(--table-row-selected);
+        outline: 1px solid var(--accent-color);
+        position: relative;
+      }
+
+      /* ===== Selected row (if you use .selected class) ===== */
+      table tr.selected {
+        background-color: var(--table-row-selected);
+      }
     </style>
   </head>
   <body data-theme="dark">
@@ -422,15 +492,43 @@
       const hiddenFieldsBar = document.getElementById("hidden-fields-bar");
 
       const defaultJson = `{
-  "name": "test",
-  "enabled": true,
-  "count": 10,
-  "employees": [
-    { "id": 1, "department": "Engineering", "salary": 5000 },
-    { "id": 2, "department": "Marketing", "salary": 4500 }
-  ],
-  "active": null
-}`;
+  "userId": "123",
+  "name": "John Doe",
+  "contact": {
+    "email": "john@example.com",
+    "phone": "555-1234"
+  },
+  "orders": [
+    {
+      "orderId": "ORD-001",
+      "date": "2023-10-01",
+      "items": [
+        {
+          "itemId": "ITEM-101",
+          "name": "Laptop",
+          "quantity": 1
+        },
+        {
+          "itemId": "ITEM-102",
+          "name": "Mouse",
+          "quantity": 2
+        }
+      ]
+    },
+    {
+      "orderId": "ORD-002",
+      "date": "2023-10-05",
+      "items": [
+        {
+          "itemId": "ITEM-103",
+          "name": "Keyboard",
+          "quantity": 1
+        }
+      ]
+    }
+  ]
+}
+`;
 
       let currentParsedData = null;
       let hiddenFields = new Set();
@@ -676,7 +774,7 @@
         if (typeof val === "number")
           return `<p style="display:inline; margin:0; color: var(--json-number);">${val}</p>`;
         if (typeof val === "string")
-          return `<p style="display:inline; margin:0; color: var(--json-string);">"${escapeHtml(val)}"</p>`;
+          return `<p style="display:inline; margin:0; color: var(--json-string);">${escapeHtml(val)}</p>`;
         return val;
       }
 
@@ -729,7 +827,6 @@
           let keys = Object.keys(data).filter((k) => !hiddenFields.has(k));
           if (keys.length === 0) return "{}";
 
-          html += "<tr><th>Key</th><th>Value</th></tr>";
           keys.forEach((key) => {
             const safeKey = escapeHtml(key);
             const encodedKey = encodeURIComponent(key);
@@ -740,6 +837,36 @@
         html += "</table>";
         return html;
       }
+
+      // Add this inside your script section
+      gridOutput.addEventListener("mouseover", (e) => {
+        const cell = e.target.closest("td");
+        if (!cell) return;
+
+        const table = cell.closest("table");
+        const index = cell.cellIndex;
+
+        // Highlight columns by adding a class to all cells in the same index
+        Array.from(table.rows).forEach((row) => {
+          if (row.cells[index]) {
+            row.cells[index].style.backgroundColor = "rgba(47, 129, 247, 0.05)";
+          }
+        });
+      });
+
+      gridOutput.addEventListener("mouseout", (e) => {
+        const cell = e.target.closest("td");
+        if (!cell) return;
+
+        const table = cell.closest("table");
+        const index = cell.cellIndex;
+
+        Array.from(table.rows).forEach((row) => {
+          if (row.cells[index]) {
+            row.cells[index].style.backgroundColor = "";
+          }
+        });
+      });
 
       jsonInput.innerHTML = syntaxHighlight(defaultJson);
       saveState();
